@@ -73,7 +73,7 @@ struct sockaddr_storage peer;
 int peerfd = tcp_accept(sockfd, &peer);
 ```
 
-where `peer` and `peerfd` are the address and socket file descriptor of the other end that requested the connection.
+where `peer` and `peerfd` are the address and socket file descriptor of the other end that opened the connection.
 
 Then you may need to convert `peer` into a version-specific address if you are familiar with C programming.
 
@@ -127,7 +127,7 @@ struct sockaddr_un peer;
 int peerfd = unix_accept(sockfd, &peer);
 ```
 
-where again `peer` and `peerfd` are the address and socket file descriptor of the other end that requested the connection.
+where again `peer` and `peerfd` are the address and socket file descriptor of the other end that opened the connection.
 
 ## Todos
 

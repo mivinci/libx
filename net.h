@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <sys/un.h>
+#include <sys/socket.h>
 
 // IPv4 or IPv6
 int udp_bind(const char *ip, unsigned short port);

@@ -165,7 +165,7 @@ int tcp_connect(const char *addr, unsigned short port) {
 }
 
 int tcp_accept(int sockfd, struct sockaddr_storage *sa) {
-    socklen_t len = (socklen_t)sizeof sa;
+    socklen_t len = (socklen_t)sizeof *sa;
     return __accept(sockfd, (struct sockaddr*)sa, &len);
 }
 
@@ -222,7 +222,7 @@ int unix_listen(const char *path) {
 }
 
 int unix_accept(int sockfd, struct sockaddr_un *sa) {
-    socklen_t len = (socklen_t)sizeof sa;
+    socklen_t len = (socklen_t)sizeof *sa;
     return __accept(sockfd, (struct sockaddr*)sa, &len);
 }
 
