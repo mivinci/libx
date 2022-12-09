@@ -5,15 +5,17 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <sys/socket.h>
+#include <sys/ioctl.h>
 #include <sys/uio.h>
 #include <netinet/ip.h>
 
 #include "net.h"
 #include "log.h"
 
-#define DEF_PORT 55555
-
 #ifdef __linux__
+#include <linux/if.h>
+#include <linux/if_tun.h>
+
 int tun_alloc(char *dev) {
     struct ifreq ifr;
     int fd;
@@ -29,6 +31,7 @@ int tun_alloc(char *dev) {
         strncpy(ifr.ifr_name, dev, IFNAMSIZ);
     }
 
+    int err;
     if( (err = ioctl(fd, TUNSETIFF, (void *)&ifr)) < 0 ) {
         perror("ioctl(TUNSETIFF)");
         close(fd);
@@ -40,7 +43,6 @@ int tun_alloc(char *dev) {
 #endif
 
 #ifdef __APPLE__
-#include <sys/ioctl.h>
 #include <sys/kern_control.h>
 #include <sys/sys_domain.h> // SYSPROTO_CONTROL
 #include <net/if_utun.h>
@@ -151,6 +153,8 @@ ssize_t tun_write(int fd, char *buf, size_t n) {
 #endif
 
 #if 0 // test
+
+#define DEF_PORT 55555
 
 static void usage(const char *prog) {
     fprintf(stderr,
