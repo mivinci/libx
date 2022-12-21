@@ -22,11 +22,14 @@ int unix_accept(int sockfd, struct sockaddr_un *sa);
 // utility functions
 void set_nonblocking(int, bool);
 void set_cloexec(int);
+ssize_t sock_read(int, char*, size_t);
+ssize_t sock_write(int, const char*, size_t);
+ssize_t sock_readfrom(int, char*, size_t, struct sockaddr_storage*);
+ssize_t sock_writeto(int, const char*, size_t, struct sockaddr_storage*);
 
 // Tun
-int tun_alloc(char*);
+int tun_open(char*);
 ssize_t tun_read(int, char*, size_t);
-ssize_t tun_write(int, char*, size_t);
-
+ssize_t tun_write(int, const char*, size_t);
 
 #endif

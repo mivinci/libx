@@ -37,13 +37,13 @@ int main(int argc, char **argv)
             break;
         case 'h':
             usage(argv[0]);
-            return 0;
+            exit(0);
         }
     }
 
     int sockfd;
     if ((sockfd = tcp_listen(addr, port)) < 0) {
-        return 1;
+        exit(1);
     }
 
     int peerfd;
@@ -60,7 +60,7 @@ int main(int argc, char **argv)
         rfds = all;
         if (select(maxfd+1, &rfds, NULL, NULL, NULL) < 0) {
             perror("select");
-            return 1;
+            exit(1);
         }
 
         for (int i = 0; i <= maxfd; ++i) {
@@ -68,7 +68,7 @@ int main(int argc, char **argv)
                 if (i == sockfd) {
                     if ((peerfd = tcp_accept(sockfd, &peer)) < 0) {
                         perror("accept");
-                        return 1;
+                        exit(1);
                     }
                     FD_SET(peerfd, &all);
                     if (peerfd > maxfd) {

@@ -41,7 +41,7 @@ static inline int __inet_bind(const char *addr, unsigned short port, int socktyp
 
     int family = is_ipv6(addr) ? AF_INET6 : AF_INET;
     if (family < 0) {
-        errorf("%s is neither IPv4 nor IPv6", addr);
+        log_error("%s is neither IPv4 nor IPv6", addr);
         return -1;
     }
     
@@ -53,19 +53,19 @@ static inline int __inet_bind(const char *addr, unsigned short port, int socktyp
 
     int err;
     if ((err = getaddrinfo(addr, _port, &hint, &ai)) != 0) {
-        errorf("getaddrinfo: %s", gai_strerror(err));
+        log_error("getaddrinfo: %s", gai_strerror(err));
         return -1;
     }
 
     int sockfd = -1;
     for (p = ai; p != NULL; p = p->ai_next) {
         if ((sockfd = __socket(p->ai_family, p->ai_socktype, p->ai_protocol)) < 0) {
-            infof("socket: %s", strerror(errno));
+            log_info("socket: %s", strerror(errno));
             continue;
         }
 
         if (bind(sockfd, p->ai_addr, p->ai_addrlen) < 0) {
-            infof("bind: %s", strerror(errno));
+            log_info("bind: %s", strerror(errno));
             continue;
         }
         break;
@@ -81,7 +81,7 @@ static inline int __connect(int sockfd, const char *addr, unsigned short port, i
 
     int family = is_ipv6(addr) ? AF_INET6 : AF_INET;
     if (family < 0) {
-        errorf("%s is neither IPv4 nor IPv6", addr);
+        log_error("%s is neither IPv4 nor IPv6", addr);
         return -1;
     }
 
@@ -92,13 +92,13 @@ static inline int __connect(int sockfd, const char *addr, unsigned short port, i
 
     int err;
     if ((err = getaddrinfo(addr, _port, &hint, &ai)) != 0) {
-        errorf("getaddrinfo: %s", gai_strerror(err));
+        log_error("getaddrinfo: %s", gai_strerror(err));
         return -1;
     }
 
     for (p = ai; p != NULL; p = p->ai_next) {
         if ((err = connect(sockfd, p->ai_addr, p->ai_addrlen)) < 0) {
-            errorf("connect: %s", strerror(errno));
+            log_error("connect: %s", strerror(errno));
             continue;
         }
         break;
@@ -110,9 +110,13 @@ static inline int __connect(int sockfd, const char *addr, unsigned short port, i
 
 static inline int __accept(int sockfd, struct sockaddr *sa, socklen_t *len) {
     int peerfd;
-    if ((peerfd = accept(sockfd, sa, len)) < 0) {
-        errorf("accept: %s", strerror(errno));
-        return peerfd;
+    for(;;) {
+        if ((peerfd = accept(sockfd, sa, len)) < 0) {
+            if (errno == EINTR) continue;
+            log_error("accept: %s", strerror(errno));
+            return peerfd;
+        }
+        break;
     }
     set_cloexec(peerfd);
     return peerfd;
@@ -148,7 +152,7 @@ int tcp_listen(const char *addr, unsigned short port) {
         return sockfd;
     }
     if (listen(sockfd, 5) < 0) {
-        errorf("listen: %s", strerror(errno));
+        log_error("listen: %s", strerror(errno));
         return -1;
     }
     return sockfd;
@@ -156,9 +160,8 @@ int tcp_listen(const char *addr, unsigned short port) {
 
 int tcp_connect(const char *addr, unsigned short port) {
     int sockfd;
-
     if ((sockfd = __socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-        errorf("socket(AF_INET): %s", strerror(errno));
+        log_error("socket(AF_INET): %s", strerror(errno));
         return -1;
     }
     return __connect(sockfd, addr, port, SOCK_STREAM);
@@ -172,7 +175,7 @@ int tcp_accept(int sockfd, struct sockaddr_storage *sa) {
 static inline int __unix_bind(const char *path, int socktype) {
     int sockfd;
     if ((sockfd = __socket(AF_UNIX, socktype, 0)) < 0) {
-        errorf("socket(AF_UNIX): %s", strerror(errno));
+        log_error("socket(AF_UNIX): %s", strerror(errno));
         return -1;
     }
     struct sockaddr_un sa;
@@ -181,7 +184,7 @@ static inline int __unix_bind(const char *path, int socktype) {
     strncpy(sa.sun_path, path, sizeof(sa.sun_path)-1);
 
     if (bind(sockfd, (struct sockaddr*)&sa, sizeof sa) < 0) {
-        errorf("bind: %s", strerror(errno));
+        log_error("bind: %s", strerror(errno));
         return -1;
     }
     set_cloexec(sockfd);
@@ -195,7 +198,7 @@ int unix_bind(const char *path, int socktype) {
 int unix_connect(const char *path, int socktype) {
     int sockfd;
     if ((sockfd = __socket(AF_UNIX, socktype, 0)) < 0) {
-        errorf("socket(AF_UNIX): %s", strerror(errno));
+        log_error("socket(AF_UNIX): %s", strerror(errno));
         return -1;
     }
     struct sockaddr_un sa;
@@ -203,7 +206,7 @@ int unix_connect(const char *path, int socktype) {
     sa.sun_family = AF_UNIX;
     strncpy(sa.sun_path, path, sizeof(sa.sun_path)-1);
     if (connect(sockfd, (struct sockaddr*)&sa, sizeof sa) < 0) {
-        errorf("connect: %s", strerror(errno));
+        log_error("connect: %s", strerror(errno));
         return -1;
     }
     return sockfd;
@@ -215,7 +218,7 @@ int unix_listen(const char *path) {
         return sockfd;
     }
     if (listen(sockfd, 20) < 0) {
-        errorf("listen: %s", strerror(errno));
+        log_error("listen: %s", strerror(errno));
         return -1;
     }
     return sockfd;
@@ -226,6 +229,55 @@ int unix_accept(int sockfd, struct sockaddr_un *sa) {
     return __accept(sockfd, (struct sockaddr*)sa, &len);
 }
 
+ssize_t sock_read(int sockfd, char *buf, size_t len) {
+    ssize_t total = 0, nread;
+    while(total < len) {
+        nread = recv(sockfd, buf, len-total, 0);
+        if (nread == 0) return total;
+        if (nread < 0) return -1;
+        total += nread;
+        buf += nread;
+    }
+    return total;
+}
+
+ssize_t sock_write(int sockfd, const char *buf, size_t len) {
+    ssize_t total = 0, nwrite;
+    while(total < len) {
+        nwrite = send(sockfd, buf, len-total, 0);
+        if (nwrite == 0) return total;
+        if (nwrite < 0) return -1;
+        total += nwrite;
+        buf += nwrite;
+    }
+    return total;
+}
+
+ssize_t sock_readfrom(int sockfd, char *buf, size_t len, struct sockaddr_storage *sa) {
+    ssize_t total = 0, nread;
+    socklen_t sa_len = (socklen_t)sizeof *sa;
+    while(total < len) {
+        nread = recvfrom(sockfd, buf, len-total, 0, sa, &sa_len);
+        if (nread == 0) return total;
+        if (nread < 0) return -1;
+        total += nread;
+        buf += nread;
+    }
+    return total;
+}
+
+ssize_t sock_writeto(int sockfd, const char *buf, size_t len, struct sockaddr_storage *sa) {
+    ssize_t total = 0, nwrite;
+    socklen_t sa_len = (socklen_t)sizeof *sa;
+    while(total < len) {
+        nwrite = recvfrom(sockfd, buf, len-total, 0, sa, &sa_len);
+        if (nwrite == 0) return total;
+        if (nwrite < 0) return -1;
+        total += nwrite;
+        buf += nwrite;
+    }
+    return total;
+}
 
 #if 0 // test
 

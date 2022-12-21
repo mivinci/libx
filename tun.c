@@ -16,7 +16,7 @@
 #include <linux/if.h>
 #include <linux/if_tun.h>
 
-int tun_alloc(char *dev) {
+int tun_open(char *dev) {
     struct ifreq ifr;
     int fd;
 
@@ -81,21 +81,21 @@ static int utun_open(struct ctl_info ci, int utun_num) {
     return fd;
 }
 
-int tun_alloc(char *dev) {
+int tun_open(char *dev) {
     struct ctl_info ci;
     int utun_num = -1;
     int fd;
 
     if (*dev != 0 && strcmp("utun", dev) != 0) { // not equal
         if (sscanf(dev, "utun%d", &utun_num) != 1) { // zero or more than one integer found
-            errorf("utun name should be utunX where X is a device number, but got %s", dev);
+            log_error("utun name should be utunX where X is a device number, but got %s", dev);
             return -1;
         }
     }
 
     size_t ctl_name_len = sizeof(ci.ctl_name);
     if (strlcpy(ci.ctl_name, UTUN_CONTROL_NAME, ctl_name_len) >= ctl_name_len) {
-        errorf("UTUN_CONTROL_NAME too long");
+        log_error("UTUN_CONTROL_NAME too long");
         return -1;
     }
 
@@ -134,7 +134,7 @@ ssize_t tun_read(int fd, char *buf, size_t n) {
     return no_pi > 0? no_pi : 0;
 }
 
-ssize_t tun_write(int fd, char *buf, size_t n) {
+ssize_t tun_write(int fd, const char *buf, size_t n) {
     uint32_t pi;
     struct iovec iv[2];
     struct ip *iph;
@@ -197,7 +197,7 @@ int main(int argc, char **argv)
         }
     }
 
-    if ((tun_fd = tun_alloc(dev)) < 0) {
+    if ((tun_fd = tun_open(dev)) < 0) {
         debug("open tun: %s", strerror(errno));
         exit(1);
     }

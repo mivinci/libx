@@ -17,7 +17,7 @@ void log_init(int level) {
 #if 0 // test
 
 int main(void) {
-    debugf("h");
+    log_debug("h");
     return 0;
 }
 
