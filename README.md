@@ -40,7 +40,7 @@ or on all network interfaces.
 int sockfd = udp_bind(NULL, 8080);
 ```
 
-Connect a local UDP socket to a remote one (usually on client side) so that you can use `recv` and `send` to transmit data from and to the other end. Otherwise, you have use `recvfrom` and `sendto` each time with a specific address.
+Connect a local UDP socket to a remote one (usually on client side) so that you can use `recv` or `send` system calls to transmit data from or to the other end. Otherwise, you have to use `recvfrom` and `sendto` each time with a specific address.
 
 ```c
 int err = udp_connect("8.8.8.8", 53);
@@ -156,7 +156,7 @@ Open a TUN device. ([What is a TUN device?](https://en.wikipedia.org/wiki/TUN/TA
 int tunfd = tun_open("/dev/net/tun");
 ```
 
-then use the following APIs to read/write from/to the TUN device. Note that like the `recv` and `send` system calls, it is not guaranteed that they read/write exactly the same size as you expect.
+then use the following APIs to read/write from/to the TUN device. Note that like `recv` and `send` system calls, it is not guaranteed that they read/write exactly the same size as you expect.
 
 ```c
 ssize_t tun_read(int, char*, size_t);
@@ -167,3 +167,8 @@ ssize_t tun_write(int, const char*, size_t);
 
 - Encapsulate an event loop
 - Add examples for every APIs possible
+
+
+## License
+
+This library is unlicense licensed :)
