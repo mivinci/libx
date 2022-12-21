@@ -129,6 +129,41 @@ int peerfd = unix_accept(sockfd, &peer);
 
 where again `peer` and `peerfd` are the address and socket file descriptor of the other end that opened the connection.
 
+### Utilities
+
+Make a socket file descriptor (non-)blocking.
+
+```c
+set_nonblocking(sockfd, 1);
+```
+
+or 0 for blocking socket.
+
+Here're also APIs for reading or writing exactly the same size as you expect. Note that the first two are for TCP, UDP or UNIX domain sockets, and the last two are for UDP sockets only.
+
+```c
+ssize_t sock_read(int, char*, size_t);
+ssize_t sock_write(int, const char*, size_t);
+ssize_t sock_readfrom(int, char*, size_t, struct sockaddr_storage*);
+ssize_t sock_writeto(int, const char*, size_t, struct sockaddr_storage*);
+```
+
+### TUN Device
+
+Open a TUN device. ([What is a TUN device?](https://en.wikipedia.org/wiki/TUN/TAP))
+
+```c
+int tunfd = tun_open("/dev/net/tun");
+```
+
+then use the following APIs to read/write from/to the TUN device. Note that like the `recv` and `send` system calls, it is not guaranteed that they read/write exactly the same size as you expect.
+
+```c
+ssize_t tun_read(int, char*, size_t);
+ssize_t tun_write(int, const char*, size_t);
+```
+
 ## Todos
 
 - Encapsulate an event loop
+- Add examples for every APIs possible
