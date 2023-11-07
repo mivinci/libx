@@ -24,24 +24,24 @@ struct server {
   unsigned nconn;
 };
 
-void cb_echo(struct loop *loop, int revents, struct ev *ev) {
+int cb_echo(struct loop *loop, struct ev *ev) {
   struct conn *C = container_of(ev, struct conn, ev);
   char buf[BUF_MAX];
   int nread, nwrite, sockfd = C->ev.fd;
 
-  if (revents & EV_READ) {
+  if (ev->revents & EV_READ) {
     nread = sock_read(sockfd, buf, BUF_MAX);
     if (nread <= 0)
       goto CLOSE;
     memcpy(C->wbuf, buf, nread);
     C->nwbuf = nread;
-    return;
+    return 0;
   }
-  if (revents & EV_WRITE) {
+  if (ev->revents & EV_WRITE) {
     nwrite = sock_write(sockfd, C->wbuf, C->nwbuf);
     if (nwrite <= 0)
       goto CLOSE;
-    return;
+    return 0;
   }
 
 CLOSE:
@@ -53,7 +53,7 @@ CLOSE:
   loop_del(loop, ev);
 }
 
-void cb_accept(struct loop *loop, int revents, struct ev *ev) {
+int cb_accept(struct loop *loop, struct ev *ev) {
   int err;
   struct server *S = container_of(ev, struct server, ev);
   struct conn *C = malloc(sizeof(struct conn));
@@ -71,10 +71,11 @@ void cb_accept(struct loop *loop, int revents, struct ev *ev) {
   C->next = S->conns;
   S->conns = C;
   S->nconn++;
-  return;
+  return 0;
 ERR:
   close(sockfd);
   free(C);
+  return 0;
 }
 
 int server_init(struct server *S, const char *ipa, unsigned short port) {
@@ -91,12 +92,12 @@ int main(void) {
   int err;
   struct server S;
 
-  S.loop = loop_new(5);
+  S.loop = loop_alloc(5);
 
   err = server_init(&S, "127.0.0.1", 8080);
   assert(err == 0);
 
-  loop_sched(S.loop);
+  loop_wait(S.loop);
 
   loop_free(S.loop);
   return 0;

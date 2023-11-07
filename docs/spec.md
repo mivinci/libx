@@ -155,10 +155,10 @@ Include the needed header file.
 #include <x/ev.h>
 ```
 
-To create an event loop instance, call `loop_new` that takes an argument as a hint for the event loop to the number of events to be added.
+To create an event loop instance, call `loop_alloc` that takes an argument as a hint for the event loop to the number of events to be added.
 
 ```c
-struct loop *loop_new(int);
+struct loop *loop_alloc(int);
 ```
 
 To operate on an event loop, call `loop_ctl`
@@ -181,10 +181,10 @@ loop_mod(L, ev)
 loop_del(L, ev)
 ```
 
-To start an event loop, call `loop_sched` that blocks on dispatching fired events to their callback functions, and returns the number of dispatched events if the event loop is stopped.
+To start an event loop, call `loop_wait` that blocks on dispatching fired events to their callback functions, and returns the number of dispatched events if the event loop is stopped.
 
 ```c
-int loop_sched(struct loop*);
+int loop_wait(struct loop*);
 ```
 
 Finally drop the event loop by calling `loop_free` as y'all expected.

@@ -23,8 +23,6 @@ struct loop;
 
 // struct ev represents an IO event or a timer event.
 struct ev {
-  /* public  */
-
   // file descriptor for an IO event.
   int fd;
   // events to be watched, can be EV_READ, EV_WRITE for
@@ -33,9 +31,7 @@ struct ev {
   // milliseconds to wait for a timer event.
   long long ms;
   // callback function for an event.
-  void (*callback)(struct loop *, unsigned, struct ev *);
-
-  /* private */
+  int (*callback)(struct loop *, struct ev *);
 
   // absolute time to fire an timer event, initialized by
   // the event loop.
@@ -43,19 +39,23 @@ struct ev {
   // index into the minheap for an timer event, initialized
   // by the event loop.
   int id;
+  // events ready, initialized by the event loop.
+  int revents;
 };
 
 /* Event Loop Primitives */
 
-// loop_new creates an event loop.
-struct loop *loop_new(int);
-// loop_dispatch pools and dispatches fired events to their
-// callback functions,
+// loop_alloc creates an event loop.
+struct loop *loop_alloc(int);
+// loop_dispatch polls fired events, calls their callback
+// functions, and returns the number of fired events on success
+// or the value returned by the first callback function returning
+// a negative integer.
 int loop_dispatch(struct loop *, int);
-// loop_sched calls loop_dispatch in an infinite loop on all
-// events, returns the toal amount of dispatched events if the
-// event loop exits.
-int loop_sched(struct loop *);
+// loop_wait calls loop_dispatch in an infinite loop on all
+// events, and returns the toal amount of dispatched events if
+// the event loop exits.
+int loop_wait(struct loop *);
 // loop_ctl adds, modifies or deletes an event in the event
 // loop, returns 0 on success or a negative number on an error
 int loop_ctl(struct loop *, int, struct ev *);

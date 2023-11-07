@@ -7,7 +7,7 @@ struct state {
 
 static int api_init(struct loop *loop) {
   struct state *state;
-  state = xmalloc(sizeof(*state));
+  state = xalloc(NULL, sizeof(*state));
   if (unlikely(!state))
     return -1;
   FD_ZERO(&state->rfds);
@@ -18,7 +18,7 @@ static int api_init(struct loop *loop) {
 
 static void api_free(struct loop *loop) {
   if (loop->state)
-    xfree(loop->state);
+    xalloc(loop->state, 0);
 }
 
 static int api_realloc(struct loop *loop, int cap) {

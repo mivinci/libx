@@ -1,5 +1,3 @@
-#ifdef __linux__
-
 #include <sys/epoll.h>
 
 struct state {
@@ -10,11 +8,11 @@ struct state {
 static int api_init(struct loop *loop) {
   struct state *state;
 
-  state = xmalloc(sizeof(*state));
+  state = xalloc(NULL, sizeof(*state));
   if (unlikely(!state))
     goto err;
 
-  state->events = xmalloc(sizeof(struct epoll_event) * loop->cap);
+  state->events = xalloc(NULL, sizeof(struct epoll_event) * loop->cap);
   if (unlikely(!state->events))
     goto err;
 
@@ -27,22 +25,22 @@ static int api_init(struct loop *loop) {
 
 err:
   if (state->events)
-    xfree(state->events);
+    xalloc(state->events, 0);
   if (state)
-    xfree(state);
+    xalloc(state, 0);
   return -1;
 }
 
 static void api_free(struct loop *loop) {
   struct state *state = loop->state;
   close(state->epfd);
-  xfree(state->events);
-  xfree(state);
+  xalloc(state->events, 0);
+  xalloc(state, 0);
 }
 
 static int api_realloc(struct loop *loop, int cap) {
   struct state *state = loop->state;
-  state->events = xrealloc(state->events, sizeof(struct epoll_event) * cap);
+  state->events = xalloc(state->events, sizeof(struct epoll_event) * cap);
   if (unlikely(!state->events))
     return -1;
   return 0;
@@ -106,5 +104,3 @@ static int api_poll(struct loop *loop, struct timeval *tv) {
   }
   return nevents;
 }
-
-#endif

@@ -13,15 +13,15 @@ struct state {
 static int api_init(struct loop *loop) {
   struct state *state;
 
-  state = xmalloc(sizeof(*state));
+  state = xalloc(NULL, sizeof(*state));
   if (unlikely(!state))
     goto err;
 
-  state->events = xmalloc(sizeof(struct kevent) * loop->cap);
+  state->events = xalloc(NULL, sizeof(struct kevent) * loop->cap);
   if (unlikely(!state->events))
     goto err;
 
-  state->revents = xmalloc(sizeof(unsigned char) * loop->cap);
+  state->revents = xalloc(NULL, sizeof(unsigned char) * loop->cap);
   if (unlikely(!state->revents))
     goto err;
   memset(state->revents, 0, sizeof(unsigned char) * loop->cap);
@@ -35,36 +35,36 @@ static int api_init(struct loop *loop) {
 
 err:
   if (state->events)
-    xfree(state->events);
+    xalloc(state->events, 0);
   if (state->revents)
-    xfree(state->revents);
+    xalloc(state->revents, 0);
   if (state)
-    xfree(state);
+    xalloc(state, 0);
   return -1;
 }
 
 static void api_free(struct loop *loop) {
   struct state *state = loop->state;
   close(state->kq);
-  xfree(state->events);
-  xfree(state);
+  xalloc(state->events, 0);
+  xalloc(state, 0);
 }
 
 static int api_realloc(struct loop *loop, int cap) {
   struct state *state = loop->state;
-  state->events = xrealloc(state->events, sizeof(struct kevent) * cap);
+  state->events = xalloc(state->events, sizeof(struct kevent) * cap);
   if (unlikely(!state->events))
     goto err;
-  state->revents = xrealloc(state->revents, sizeof(unsigned char) * cap);
+  state->revents = xalloc(state->revents, sizeof(unsigned char) * cap);
   if (unlikely(!state->revents))
     goto err;
   memset(state->revents, 0, sizeof(unsigned char) * cap);
   return 0;
 err:
   if (state->events)
-    xfree(state->events);
+    xalloc(state->events, 0);
   if (state->revents)
-    xfree(state->revents);
+    xalloc(state->revents, 0);
   return -1;
 }
 

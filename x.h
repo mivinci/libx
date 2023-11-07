@@ -6,9 +6,7 @@ extern "C" {
 #endif
 
 #ifndef xalloc
-#define xmalloc  malloc
-#define xrealloc realloc
-#define xfree    free
+#define xalloc(p, n) __alloc(p, n)
 #endif
 
 #ifndef likely
@@ -20,6 +18,8 @@ extern "C" {
 #define container_of(ptr, type, member)                                        \
   ((type *)((char *)(ptr) - __builtin_offsetof(type, member)))
 #endif
+
+void *__alloc(void*, size_t);
 
 #ifdef __cplusplus
 }

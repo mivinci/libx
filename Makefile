@@ -7,15 +7,15 @@ AS = $(CROSS_COMPILE)ar
 all: libx.a
 
 %.o: %.c
-	$(CC) -Wall -c -o $@ $<
+	$(CC) -Wall -O2 -c -o $@ $<
 
-libx.a: ev.o net.o tun.o
+libx.a: alloc.o ev.o net.o tun.o
 	$(AR) rcs $@ $^
 
 
 .PHONY: install
 install:
-	@[ -d $(PREFIX)/lib ] || mkdir $(PREFIX)/lib
+	@[ -d $(PREFIX)/lib ] || mkdir -p $(PREFIX)/lib
 	@[ -d $(PREFIX)/include/x ] || mkdir -p $(PREFIX)/include/x
 	
 	@echo "copying libx.a to $(PREFIX)/lib/"

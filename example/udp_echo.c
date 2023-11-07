@@ -11,7 +11,7 @@
 
 #define BUFMAX 64
 
-void c(struct loop *loop, int revents, struct ev *ev) {
+int c(struct loop *loop, struct ev *ev) {
   struct sockaddr_in sa;
   socklen_t len = sizeof(sa);
   ssize_t n;
@@ -21,7 +21,7 @@ void c(struct loop *loop, int revents, struct ev *ev) {
   n = recvfrom(fd, buf, BUFMAX, 0, (struct sockaddr *)&sa, &len);
   if (n < 0) {
     if (errno == EINTR)
-      return;
+      return 0;
     perror("recvfrom");
     exit(1);
   }
@@ -33,11 +33,12 @@ void c(struct loop *loop, int revents, struct ev *ev) {
   n = sendto(fd, buf, n, 0, (struct sockaddr *)&sa, len);
   if (n < 0) {
     if (errno == EINTR)
-      return;
+      return 0;
     perror("sendto");
     exit(1);
   }
   printf("echoed %luB\n", n);
+  return 0;
 }
 
 int main(int argc, char **argv) {
@@ -55,7 +56,7 @@ int main(int argc, char **argv) {
   fd = udp_bind(NULL, 8080);
   assert(fd > 0);
 
-  L = loop_new(1);
+  L = loop_alloc(1);
   assert(L);
 
   struct ev e;
@@ -65,7 +66,7 @@ int main(int argc, char **argv) {
 
   loop_add(L, &e);
 
-  loop_sched(L);
+  loop_wait(L);
 
   close(fd);
 

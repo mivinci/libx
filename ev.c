@@ -33,23 +33,23 @@ struct loop {
 #endif
 #endif
 
-struct loop *loop_new(int backlog) {
+struct loop *loop_alloc(int backlog) {
   struct loop *loop;
 
-  loop = xmalloc(sizeof(struct loop));
+  loop = xalloc(NULL, sizeof(struct loop));
   if (!loop)
     goto err;
   memset(loop, 0, sizeof(struct loop));
 
-  loop->fired = xmalloc(sizeof(struct ev_fired) * backlog);
+  loop->fired = xalloc(NULL, sizeof(struct ev_fired) * backlog);
   if (!loop->fired)
     goto err;
 
-  loop->events = xmalloc(sizeof(struct ev *) * backlog);
+  loop->events = xalloc(NULL, sizeof(struct ev *) * backlog);
   if (!loop->events)
     goto err;
 
-  loop->heap = xmalloc(sizeof(struct ev *) * backlog);
+  loop->heap = xalloc(NULL, sizeof(struct ev *) * backlog);
   if (!loop->heap)
     goto err;
 
@@ -64,13 +64,13 @@ struct loop *loop_new(int backlog) {
 
 err:
   if (loop && loop->heap)
-    xfree(loop->heap);
+    xalloc(loop->heap, 0);
   if (loop && loop->events)
-    xfree(loop->events);
+    xalloc(loop->events, 0);
   if (loop && loop->fired)
-    xfree(loop->fired);
+    xalloc(loop->fired, 0);
   if (loop)
-    xfree(loop);
+    xalloc(loop, 0);
   return NULL;
 }
 
@@ -154,7 +154,7 @@ int loop_dispatch(struct loop *loop, int flags) {
   struct ev *event = NULL;
   struct ev_fired *fired = NULL;
   int revents = EV_NULL;
-  int i, nevents, polled = 0;
+  int i, err, nevents, polled = 0;
 
   // a zero flag means the caller doesn't want to dispatch
   // any event, so we return right away.
@@ -203,23 +203,26 @@ ev_io:
   // dispatch fired IO events to their callback functions.
   for (i = 0; i < nevents; i++) {
     fired = &loop->fired[i];
-    revents = fired->events;
     event = loop->events[fired->fd];
+    event->revents = fired->events;
     if (flags & revents && event->callback) {
-      event->callback(loop, revents, event);
+      if ((err = event->callback(loop, event)) < 0)
+        return err;
       polled++;
     }
   }
 
 ev_timer:
   if (tev && tev->callback) {
-    tev->callback(loop, EV_TIMER, tev);
+    tev->revents = EV_TIMER;
+    if ((err = tev->callback(loop, tev)) < 0)
+      return err;
     polled++;
   }
   return polled;
 }
 
-int loop_sched(struct loop *loop) {
+int loop_wait(struct loop *loop) {
   int polled = 0, n;
   while (!loop->stopped) {
     if ((n = loop_dispatch(loop, EV_ALL)) < 0)
@@ -233,15 +236,15 @@ static inline int __realloc(struct loop *loop, int cap) {
   struct ev_fired *fired;
   struct ev **events, **heap;
 
-  fired = realloc(loop->fired, sizeof(*fired) * cap);
+  fired = xalloc(loop->fired, sizeof(*fired) * cap);
   if (unlikely(!fired))
     return -1;
 
-  events = realloc(loop->events, sizeof(*events) * cap);
+  events = xalloc(loop->events, sizeof(*events) * cap);
   if (unlikely(!events))
     return -1;
 
-  heap = realloc(loop->heap, sizeof(*heap) * cap);
+  heap = xalloc(loop->heap, sizeof(*heap) * cap);
   if (unlikely(!heap))
     return -1;
 
@@ -316,8 +319,8 @@ int loop_ctl(struct loop *loop, int op, struct ev *ev) {
 void loop_free(struct loop *loop) {
   loop->stopped = 1;
   api_free(loop);
-  free(loop->fired);
-  free(loop->events);
-  free(loop->heap);
-  free(loop);
+  xalloc(loop->fired, 0);
+  xalloc(loop->events, 0);
+  xalloc(loop->heap, 0);
+  xalloc(loop, 0);
 }

@@ -3,6 +3,7 @@
 #include <fcntl.h>
 #include <netdb.h>
 #include <string.h>
+#include <sys/socket.h>
 #include <sys/types.h>
 
 #include "net.h"
