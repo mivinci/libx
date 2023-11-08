@@ -19,7 +19,8 @@ extern "C" {
   ((type *)((char *)(ptr) - __builtin_offsetof(type, member)))
 #endif
 
-void *__alloc(void*, size_t);
+#include <stddef.h>
+void *__alloc(void *, size_t);
 
 #ifdef __cplusplus
 }

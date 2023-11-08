@@ -4,8 +4,8 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "ev.h"
-#include "x.h"
+#include "x/ev.h"
+#include "x/x.h"
 
 struct ev_fired {
   int fd;
@@ -13,7 +13,6 @@ struct ev_fired {
 };
 
 struct loop {
-  int stopped;             // was the event loop stopped?
   int maxfd;               // maximum file discriptor of IO events.
   int cap;                 // the number of slots allocated for events;
   int len;                 // the number of events in the minheap.
@@ -55,7 +54,6 @@ struct loop *loop_alloc(int backlog) {
 
   loop->cap = backlog;
   loop->len = 0;
-  loop->stopped = 0;
 
   if (api_init(loop) < 0)
     goto err;
@@ -153,7 +151,6 @@ int loop_dispatch(struct loop *loop, int flags) {
   struct ev *tev = NULL;
   struct ev *event = NULL;
   struct ev_fired *fired = NULL;
-  int revents = EV_NULL;
   int i, err, nevents, polled = 0;
 
   // a zero flag means the caller doesn't want to dispatch
@@ -164,7 +161,7 @@ int loop_dispatch(struct loop *loop, int flags) {
   // see if or not the caller wants to dispatch a timer event.
   // if not, we go for IO events.
   if (!(flags & EV_TIMER))
-    goto ev_io;
+    goto do_io;
 
   // get the current time in microseconds.
   if (unlikely(gettimeofday(&now, NULL) < 0))
@@ -188,9 +185,9 @@ int loop_dispatch(struct loop *loop, int flags) {
   // if we simply divide by 1000 without adding 999, the result
   // would be 0, which is incorrect.
   if (ptv && ptv->tv_sec * 1000 + (ptv->tv_usec + 999) / 1000 <= 0)
-    goto ev_timer;
+    goto do_timer;
 
-ev_io:
+do_io:
   // if the caller doesn't want to dispatch IO events either,
   // we return right away.
   if (!(flags & EV_READ) && !(flags & EV_WRITE))
@@ -205,14 +202,14 @@ ev_io:
     fired = &loop->fired[i];
     event = loop->events[fired->fd];
     event->revents = fired->events;
-    if (flags & revents && event->callback) {
+    if (event->callback) {
       if ((err = event->callback(loop, event)) < 0)
         return err;
       polled++;
     }
   }
 
-ev_timer:
+do_timer:
   if (tev && tev->callback) {
     tev->revents = EV_TIMER;
     if ((err = tev->callback(loop, tev)) < 0)
@@ -224,7 +221,7 @@ ev_timer:
 
 int loop_wait(struct loop *loop) {
   int polled = 0, n;
-  while (!loop->stopped) {
+  while (loop->len) {
     if ((n = loop_dispatch(loop, EV_ALL)) < 0)
       break;
     polled += n;
@@ -257,12 +254,12 @@ static inline int __realloc(struct loop *loop, int cap) {
 int loop_ctl(struct loop *loop, int op, struct ev *ev) {
   struct timeval now;
   int status, cap;
-
+  
   switch (op) {
   case EV_CTL_ADD:
     // extend the event loop if needed.
     if (loop->maxfd >= loop->cap) {
-      cap = loop->cap + loop->cap / 2;  // 1.5 the current capacity
+      cap = loop->cap + loop->cap / 2;  // 1.5x the current capacity
       status = __realloc(loop, cap);
       if (unlikely(status < 0))
         return status;
@@ -276,6 +273,7 @@ int loop_ctl(struct loop *loop, int op, struct ev *ev) {
       status = api_ctl(loop, EV_CTL_ADD, ev->fd, ev->events);
       if (unlikely(status < 0))
         return status;
+      loop->len++;
     }
     if (loop->maxfd < ev->fd)
       loop->maxfd = ev->fd;
@@ -298,14 +296,16 @@ int loop_ctl(struct loop *loop, int op, struct ev *ev) {
   case EV_CTL_MOD:
   case EV_CTL_DEL:
     // modify or delete ev from the kernel if it is an IO event.
-    if (ev->events & EV_IO)
+    if (ev->events & EV_IO) {
       status = api_ctl(loop, op, ev->fd, ev->events);
+      loop->len--;
+    }
     // remove ev from the minimal heap if it is a timeout event.
     if (ev->events & EV_TIMER) {
       heap_remove(loop->heap, ev->id, loop->len);
       loop->len--;
     }
-    // remove ev from the event loop if needed anyways.
+    // remove ev from the event loop anyways.
     if (op == EV_CTL_DEL)
       loop->events[ev->fd] = NULL;
     // we are good to go :)
@@ -317,7 +317,6 @@ int loop_ctl(struct loop *loop, int op, struct ev *ev) {
 }
 
 void loop_free(struct loop *loop) {
-  loop->stopped = 1;
   api_free(loop);
   xalloc(loop->fired, 0);
   xalloc(loop->events, 0);

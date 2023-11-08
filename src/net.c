@@ -6,7 +6,7 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 
-#include "net.h"
+#include "x/net.h"
 
 static int __socket(int family, int socktype, int protocol) {
   int sockfd;
@@ -153,13 +153,13 @@ int tcp_listen(const char *addr, unsigned short port) {
   return sockfd;
 }
 
-int tcp_connect(const char *addr, unsigned short port) {
+int tcp_connect(const char *host, unsigned short port) {
   int sockfd;
   if ((sockfd = __socket(AF_INET, SOCK_STREAM, 0)) < 0) {
     perror("socket(AF_INET)");
     return -1;
   }
-  return __connect(sockfd, addr, port, SOCK_STREAM);
+  return __connect(sockfd, host, port, SOCK_STREAM);
 }
 
 int tcp_accept(int sockfd, struct sockaddr_storage *sa) {

@@ -1,3 +1,5 @@
+#ifdef __linux__
+
 #include <sys/epoll.h>
 
 struct state {
@@ -104,3 +106,5 @@ static int api_poll(struct loop *loop, struct timeval *tv) {
   }
   return nevents;
 }
+
+#endif

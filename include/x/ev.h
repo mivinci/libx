@@ -32,6 +32,8 @@ struct ev {
   long long ms;
   // callback function for an event.
   int (*callback)(struct loop *, struct ev *);
+  // user data
+  void *ud;
 
   // absolute time to fire an timer event, initialized by
   // the event loop.
@@ -39,7 +41,7 @@ struct ev {
   // index into the minheap for an timer event, initialized
   // by the event loop.
   int id;
-  // events ready, initialized by the event loop.
+  // ready events, initialized by the event loop.
   int revents;
 };
 
@@ -53,8 +55,7 @@ struct loop *loop_alloc(int);
 // a negative integer.
 int loop_dispatch(struct loop *, int);
 // loop_wait calls loop_dispatch in an infinite loop on all
-// events, and returns the toal amount of dispatched events if
-// the event loop exits.
+// events, and returns the toal amount of dispatched events.
 int loop_wait(struct loop *);
 // loop_ctl adds, modifies or deletes an event in the event
 // loop, returns 0 on success or a negative number on an error

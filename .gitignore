@@ -2,8 +2,5 @@
 *.a
 *.out
 
-build
-
 .vscode
 .idea
-
