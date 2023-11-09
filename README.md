@@ -18,21 +18,17 @@ Note that this library lacks cover of tests, and there may be things I code wron
 
 ## Installation
 
-```
-make
-make install
-```
-
-After that you will have all necessary header files and a static library `libx.a` put in the `build` directory, or you can specify an output destination, or even a cross-compiler like follows.
+Run
 
 ```
 make
-make install PREFIX=/usr/local CROSS_COMPILE=riscv64-unknown-linux-gnu-
 ```
+
+and then copy the output file `libx.a` to whatever you want.
 
 ## Documentation
 
-Check out [docs](./docs).
+For API specifications, check out [spec.md](./docs/spec.md).
 
 ## Contribution
 
