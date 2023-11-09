@@ -174,6 +174,7 @@ int loop_dispatch(struct loop *loop, int flags) {
     tv.tv_usec = tev->exp.tv_usec - now.tv_usec;
     ptv = &tv;
     loop->len--;
+    tev->id = -1;  // avoid duplicated removal by loop_ctl
   }
 
   // if the closest timer event we just polled out reaches or
@@ -222,6 +223,7 @@ do_timer:
 int loop_wait(struct loop *loop) {
   int polled = 0, n;
   while (loop->len) {
+    printf("%d\n", loop->len);
     if ((n = loop_dispatch(loop, EV_ALL)) < 0)
       break;
     polled += n;
@@ -254,7 +256,7 @@ static inline int __realloc(struct loop *loop, int cap) {
 int loop_ctl(struct loop *loop, int op, struct ev *ev) {
   struct timeval now;
   int status, cap;
-  
+
   switch (op) {
   case EV_CTL_ADD:
     // extend the event loop if needed.
@@ -273,7 +275,6 @@ int loop_ctl(struct loop *loop, int op, struct ev *ev) {
       status = api_ctl(loop, EV_CTL_ADD, ev->fd, ev->events);
       if (unlikely(status < 0))
         return status;
-      loop->len++;
     }
     if (loop->maxfd < ev->fd)
       loop->maxfd = ev->fd;
@@ -296,19 +297,16 @@ int loop_ctl(struct loop *loop, int op, struct ev *ev) {
   case EV_CTL_MOD:
   case EV_CTL_DEL:
     // modify or delete ev from the kernel if it is an IO event.
-    if (ev->events & EV_IO) {
+    if (ev->events & EV_IO)
       status = api_ctl(loop, op, ev->fd, ev->events);
-      loop->len--;
-    }
     // remove ev from the minimal heap if it is a timeout event.
-    if (ev->events & EV_TIMER) {
+    if ((ev->events & EV_TIMER) && ev->id >= 0) {
       heap_remove(loop->heap, ev->id, loop->len);
       loop->len--;
     }
     // remove ev from the event loop anyways.
     if (op == EV_CTL_DEL)
       loop->events[ev->fd] = NULL;
-    // we are good to go :)
     return 0;
 
   default:
