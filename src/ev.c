@@ -14,8 +14,9 @@ struct ev_fired {
 
 struct loop {
   int maxfd;               // maximum file discriptor of IO events.
-  int cap;                 // the number of slots allocated for events;
-  int len;                 // the number of events in the minheap.
+  int cap;                 // the number of slots allocated for loop::events;
+  int len;                 // the number of timer events.
+  int len_io;              // the number of IO events.
   struct ev_fired *fired;  // events fired.
   struct ev **events;      // events being watched, indexed by ev::fd.
   struct ev **heap;        // minheap for timer events.
@@ -197,6 +198,7 @@ do_io:
   // poll fired IO events with the timeout interval of the closest
   // timer event we just calculated.
   nevents = api_poll(loop, ptv);
+  loop->len_io -= nevents;
 
   // dispatch fired IO events to their callback functions.
   for (i = 0; i < nevents; i++) {
@@ -222,8 +224,7 @@ do_timer:
 
 int loop_wait(struct loop *loop) {
   int polled = 0, n;
-  while (loop->len) {
-    printf("%d\n", loop->len);
+  while (loop->len + loop->len_io) {
     if ((n = loop_dispatch(loop, EV_ALL)) < 0)
       break;
     polled += n;
@@ -275,6 +276,7 @@ int loop_ctl(struct loop *loop, int op, struct ev *ev) {
       status = api_ctl(loop, EV_CTL_ADD, ev->fd, ev->events);
       if (unlikely(status < 0))
         return status;
+      loop->len_io++;
     }
     if (loop->maxfd < ev->fd)
       loop->maxfd = ev->fd;
@@ -294,7 +296,6 @@ int loop_ctl(struct loop *loop, int op, struct ev *ev) {
     loop->events[ev->fd] = ev;
     return 0;  // we are good to go :)
 
-  case EV_CTL_MOD:
   case EV_CTL_DEL:
     // modify or delete ev from the kernel if it is an IO event.
     if (ev->events & EV_IO)
@@ -305,8 +306,10 @@ int loop_ctl(struct loop *loop, int op, struct ev *ev) {
       loop->len--;
     }
     // remove ev from the event loop anyways.
-    if (op == EV_CTL_DEL)
+    if (op == EV_CTL_DEL) {
       loop->events[ev->fd] = NULL;
+      loop->len_io--;
+    }
     return 0;
 
   default:
