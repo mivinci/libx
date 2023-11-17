@@ -9,8 +9,7 @@
 int echo(struct loop *L, struct ev *ev) {
   if (ev->revents & EV_TIMER) {
     printf("timeout %d.%d\n", ev->exp.tv_sec, ev->exp.tv_usec);
-    loop_del(L, ev);
-    return 0;
+    return loop_del(L, ev);
   }
   char buf[RBUF_MAX];
   int n;

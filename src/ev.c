@@ -198,7 +198,6 @@ do_io:
   // poll fired IO events with the timeout interval of the closest
   // timer event we just calculated.
   nevents = api_poll(loop, ptv);
-  loop->len_io -= nevents;
 
   // dispatch fired IO events to their callback functions.
   for (i = 0; i < nevents; i++) {
@@ -217,6 +216,8 @@ do_timer:
     tev->revents = EV_TIMER;
     if ((err = tev->callback(loop, tev)) < 0)
       return err;
+    if (tev->fd > 0)  // remove the event if it is also an IO event.
+      api_ctl(loop, EV_CTL_DEL, tev->fd, tev->events);
     polled++;
   }
   return polled;
@@ -226,7 +227,7 @@ int loop_wait(struct loop *loop) {
   int polled = 0, n;
   while (loop->len + loop->len_io) {
     if ((n = loop_dispatch(loop, EV_ALL)) < 0)
-      break;
+      return n;
     polled += n;
   }
   return polled;
@@ -297,7 +298,7 @@ int loop_ctl(struct loop *loop, int op, struct ev *ev) {
     return 0;  // we are good to go :)
 
   case EV_CTL_DEL:
-    // modify or delete ev from the kernel if it is an IO event.
+    // remove ev from the kernel if it is an IO event.
     if (ev->events & EV_IO)
       status = api_ctl(loop, op, ev->fd, ev->events);
     // remove ev from the minimal heap if it is a timeout event.

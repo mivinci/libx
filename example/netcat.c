@@ -7,6 +7,17 @@
 #include "x/ev.h"
 #include "x/net.h"
 
+#define BUF_MAX  1024
+#define CONN_MAX 32
+
+struct tcp_conn {
+  struct sockaddr sa;
+  socklen_t sa_size;
+  struct ev ev;
+};
+
+static struct tcp_conn conns[CONN_MAX];
+
 int listen_mode = 0;
 int udp_mode = 0;
 
@@ -16,21 +27,63 @@ void usage(const char *argv0) {
           "options:\n"
           "  -h    display this help and exit\n"
           "  -l    listen mode, for inbound connects\n"
+          "  -t    TCP mode (default)\n"
           "  -u    UDP mode\n",
           argv0);
 }
 
+int on_inbound2(struct loop *L, struct ev *ev) {
+  assert(ev->revents == EV_READ);
+  int n;
+  char buf[BUF_MAX];
+  if ((n = read(ev->fd, buf, BUF_MAX)) < 0) {
+    perror("read(net)");
+    return n;
+  }
+  buf[n] = 0;
+  if ((n = write(ev->fd, buf, n)) < 0) {
+    perror("write(net)");
+    close(ev->fd);
+    ev->fd = 0;  // release the tcp connection from conns
+    return n;
+  }
+  return 0;
+}
+
 int on_inbound(struct loop *L, struct ev *ev) {
   assert(ev->revents == EV_READ);
-  struct sockaddr_storage sa;
-  char buf[1024];
-  int n;
+  int n, i;
+  char buf[BUF_MAX];
+  struct sockaddr sa;
+  socklen_t sa_size = sizeof sa;
   if (udp_mode) {
-    if ((n = sock_readfrom(ev->fd, buf, 1024, &sa)) < 0)
+    if ((n = recvfrom(ev->fd, buf, BUF_MAX, 0, &sa, &sa_size)) < 0) {
+      perror("recvfrom(net)");
       return n;
-    return sock_writeto(ev->fd, buf, 1024, &sa);
+    }
+    buf[n] = 0;
+    if ((n = sendto(ev->fd, buf, n, 0, &sa, sa_size)) < 0) {
+      perror("sendto(net)");
+      return n;
+    }
   }
-  // TODO: tcp accept
+
+  struct tcp_conn *p;
+  int peerfd;
+  for (i = 0; i < CONN_MAX; i++) {
+    p = conns + i;
+    if (p->ev.fd > 0)
+      continue;
+    if ((peerfd = accept(ev->fd, &p->sa, &p->sa_size)) < 0) {
+      perror("accept");
+      return peerfd;
+    }
+    p->ev.fd = peerfd;
+    p->ev.events = EV_READ;
+    p->ev.callback = on_inbound2;
+    return 0;
+  }
+  fprintf(stderr, "connection exceeded\n");
   return 0;
 }
 
@@ -49,31 +102,36 @@ int inbound(struct loop *L, const char *host, unsigned short port) {
 
 int on_outbound(struct loop *L, struct ev *ev) {
   assert(ev->revents == EV_READ);
-  int peerfd = *(int*)ev->ud, n;
-  char buf[1024];
-  if ((n = sock_read(STDIN_FILENO, buf, 1024)) < 0)
+  int n;
+  char buf[BUF_MAX];
+  if ((n = read(STDIN_FILENO, buf, BUF_MAX)) < 0) {
+    perror("read(stdin)");
     return n;
-  return sock_write(peerfd, buf, n);
+  }
+  buf[n] = 0;
+  if ((n = write(ev->fd, buf, n)) < 0) {
+    perror("write(net)");
+    return n;
+  }
+  return 0;
 }
 
 int outbound(struct loop *L, const char *host, unsigned short port) {
   struct ev ev;
-  int fd, peerfd;
+  int fd, peerfd, err;
   if (!udp_mode)
     peerfd = tcp_connect(host, port);
   else {
     fd = udp_bind(NULL, 0);
     assert(fd);
-    peerfd = udp_connect(fd, host, port);
+    err = udp_connect(fd, host, port);
+    assert(err == 0);
   }
-  assert(peerfd);
   ev.events = EV_READ;
   ev.callback = on_outbound;
   ev.fd = STDIN_FILENO;
-  ev.ud = &peerfd;
   loop_add(L, &ev);
   loop_wait(L);
-  close(peerfd);
   close(fd);
   return 0;
 }
@@ -93,6 +151,8 @@ int main(int argc, char **argv) {
     case 'u':
       udp_mode = 1;
       break;
+    case 't':
+      break;
     case 'h':
       usage(argv[0]);
       return 0;
@@ -103,9 +163,7 @@ int main(int argc, char **argv) {
   port = atoi(argv[++optind]);
   L = loop_alloc(16);
   assert(L);
-  err = listen_mode ? inbound(L, host, port)
-                    : outbound(L, host, port);
-
+  err = listen_mode ? inbound(L, host, port) : outbound(L, host, port);
   loop_free(L);
   return err;
 }

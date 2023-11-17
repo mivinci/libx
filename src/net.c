@@ -38,11 +38,11 @@ static int is_ipv6(const char *p) {
   return -1;
 }
 
-static int __inet_bind(const char *addr, unsigned short port, int socktype) {
+static int __inet_bind(const char *host, unsigned short port, int socktype) {
   char _port[6];
   snprintf(_port, 6, "%u", port);
 
-  int family = is_ipv6(addr) ? AF_INET6 : AF_INET;
+  int family = is_ipv6(host) ? AF_INET6 : AF_INET;
   if (family < 0)
     return -1;
 
@@ -50,10 +50,10 @@ static int __inet_bind(const char *addr, unsigned short port, int socktype) {
   memset(&hint, 0, sizeof hint);
   hint.ai_family = family;
   hint.ai_socktype = socktype;
-  hint.ai_flags = AI_PASSIVE;  // no effect if addr != NULL
+  hint.ai_flags = AI_PASSIVE;  // no effect if host != NULL
 
   int err;
-  if ((err = getaddrinfo(addr, _port, &hint, &ai)) != 0)
+  if ((err = getaddrinfo(host, _port, &hint, &ai)) != 0)
     return err;
 
   int sockfd = -1;
@@ -133,17 +133,17 @@ void set_cloexec(int sockfd) {
     fcntl(sockfd, F_SETFD, new);
 }
 
-int udp_bind(const char *addr, unsigned short port) {
-  return __inet_bind(addr, port, SOCK_DGRAM);
+int udp_bind(const char *host, unsigned short port) {
+  return __inet_bind(host, port, SOCK_DGRAM);
 }
 
-int udp_connect(int sockfd, const char *addr, unsigned short port) {
-  return __connect(sockfd, addr, port, SOCK_DGRAM);
+int udp_connect(int sockfd, const char *host, unsigned short port) {
+  return __connect(sockfd, host, port, SOCK_DGRAM);
 }
 
-int tcp_listen(const char *addr, unsigned short port) {
+int tcp_listen(const char *host, unsigned short port) {
   int sockfd;
-  if ((sockfd = __inet_bind(addr, port, SOCK_STREAM)) < 0) {
+  if ((sockfd = __inet_bind(host, port, SOCK_STREAM)) < 0) {
     return sockfd;
   }
   if (listen(sockfd, 5) < 0) {
