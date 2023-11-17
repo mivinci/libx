@@ -34,10 +34,10 @@ For API specifications, check out [spec.md](./docs/spec.md).
 
 All commits should follow the format convention below for GitHub will translate them into emojis which's cool :)
 
-`:sparkles:` - introducing new features.
-`:construction:` - work in progress.
-`:memo:` - updated documentations, including README.md.
-`:bug:` - fixed a bug.
+- `:sparkles:`  introducing new features.
+- `:construction:`  work in progress.
+- `:memo:`  updated documentations, including README.md.
+- `:bug:`  fixed a bug.
 
 ## References
 
