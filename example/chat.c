@@ -2,6 +2,7 @@
 #include <getopt.h>
 #include <netinet/in.h>
 #include <stdlib.h>
+#include <arpa/inet.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -12,9 +13,6 @@
 
 #define FREELIST_MAX 32
 #define BUF_MAX      1024
-
-int server_mode = 0;
-int udp_mode = 0;
 
 struct server {
   struct loop *L;
@@ -29,7 +27,7 @@ struct tcp_conn {
   struct sockaddr_in sa;
   socklen_t sa_size;
   struct ev ev;
-  struct server *S;   // weak
+  struct server *S;   // weak pointer
   char buf[BUF_MAX];  // read buffer
 };
 
@@ -61,6 +59,17 @@ static void putconn(struct server *S, struct tcp_conn *C) {
   }
 }
 
+static int broadcast(struct server *S, const char *buf, size_t n) {
+  struct tcp_conn *C;
+  struct list_head *p;
+  list_foreach(p, &S->conns) {
+    C = container_of(p, struct tcp_conn, node);
+    assert(C);
+    write(C->ev.fd, buf, n);  // we simply write for now.
+  }
+  return 0;
+}
+
 int on_recv_server(struct loop *L, struct ev *ev) {
   struct tcp_conn *C;
   ssize_t n;
@@ -70,11 +79,7 @@ int on_recv_server(struct loop *L, struct ev *ev) {
     goto _close;
   if ((n = read(ev->fd, C->buf, BUF_MAX)) <= 0)
     goto _close;
-  if ((n = write(ev->fd, C->buf, n)) < 0) {
-    perror("write(net)");
-    return n;
-  }
-  return 0;
+  return broadcast(C->S, C->buf, n);
 _close:
   close(ev->fd);
   list_del(&C->node);
@@ -82,27 +87,7 @@ _close:
   return 0;
 }
 
-char udp_buf[BUF_MAX];
-
-static int udp_echo(struct loop *L, struct ev *ev) {
-  struct sockaddr sa;
-  socklen_t sa_size;
-  int n;
-  if ((n = recvfrom(ev->fd, udp_buf, BUF_MAX, 0, &sa, &sa_size)) < 0) {
-    perror("recvfrom(net)");
-    return n;
-  }
-  if ((n = sendto(ev->fd, udp_buf, n, 0, &sa, sa_size)) < 0) {
-    perror("sendto(net)");
-    return n;
-  }
-  return 0;
-}
-
 int on_accept(struct loop *L, struct ev *ev) {
-  if (udp_mode)
-    return udp_echo(L, ev);
-
   struct server *S;
   struct tcp_conn *C;
   int fd;
@@ -124,7 +109,7 @@ int on_accept(struct loop *L, struct ev *ev) {
 void server_init(struct server *S, const char *host, unsigned short port) {
   S->L = loop_alloc(32);
   assert(S->L);
-  S->ev.fd = udp_mode ? udp_bind(host, port) : tcp_listen(host, port);
+  S->ev.fd = tcp_listen(host, port);
   assert(S->ev.fd);
   S->ev.events = EV_READ;
   S->ev.callback = on_accept;
@@ -192,18 +177,10 @@ int on_recv_client_stdin(struct loop *L, struct ev *ev) {
 }
 
 void client_init(struct client *C, const char *host, unsigned short port) {
-  int fd, err;
   C->L = loop_alloc(2);
   assert(C->L);
-  if (!udp_mode)
-    fd = tcp_connect(host, port);
-  else {
-    fd = udp_bind(NULL, 0);
-    err = udp_connect(fd, host, port);
-    assert(err == 0);
-  }
-  assert(fd);
-  C->ev_net.fd = fd;
+  C->ev_net.fd = tcp_connect(host, port);
+  assert(C->ev_net.fd);
   C->ev_net.events = EV_READ;
   C->ev_net.callback = on_recv_client;
   loop_add(C->L, &C->ev_net);
@@ -234,25 +211,23 @@ void usage(const char *argv0) {
           "usage: %s [options] host port\n"
           "options:\n"
           "  -h    display this help and exit\n"
-          "  -l    listen mode, for inbound connects\n"
-          "  -t    TCP mode (default)\n"
-          "  -u    UDP mode\n",
+          "  -c    client mode (default)\n"
+          "  -s    server mode\n",
           argv0);
 }
+
+int server_mode = 0;
 
 int main(int argc, char **argv) {
   const char *host;
   unsigned short port;
   int opt, err;
 
-  while ((opt = getopt(argc, argv, "ltuh")) > 0) {
+  while ((opt = getopt(argc, argv, "sch")) > 0) {
     switch (opt) {
-    case 't':
+    case 'c':
       break;
-    case 'u':
-      udp_mode = 1;
-      break;
-    case 'l':
+    case 's':
       server_mode = 1;
       break;
     case 'h':

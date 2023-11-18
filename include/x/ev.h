@@ -12,9 +12,9 @@ extern "C" {
 #define EV_CTL_MOD 3
 
 #define EV_NULL  0
-#define EV_READ  (1 << 1)
-#define EV_WRITE (1 << 2)
-#define EV_TIMER (1 << 3)
+#define EV_READ  (1 << 0)
+#define EV_WRITE (1 << 1)
+#define EV_TIMER (1 << 2)
 #define EV_IO    (EV_READ | EV_WRITE)
 #define EV_ALL   (EV_READ | EV_WRITE | EV_TIMER)
 

@@ -16,6 +16,7 @@ static int __socket(int family, int socktype, int protocol) {
 #endif
 
   if ((sockfd = socket(family, socktype, protocol)) < 0) {
+    perror("socket");
     return sockfd;
   }
 
@@ -58,11 +59,8 @@ static int __inet_bind(const char *host, unsigned short port, int socktype) {
 
   int sockfd = -1;
   for (p = ai; p != NULL; p = p->ai_next) {
-    if ((sockfd = __socket(p->ai_family, p->ai_socktype, p->ai_protocol)) < 0) {
-      perror("socket");
+    if ((sockfd = __socket(p->ai_family, p->ai_socktype, p->ai_protocol)) < 0)
       continue;
-    }
-
     if (bind(sockfd, p->ai_addr, p->ai_addrlen) < 0) {
       perror("bind");
       continue;
@@ -74,12 +72,12 @@ static int __inet_bind(const char *host, unsigned short port, int socktype) {
   return sockfd;
 }
 
-static int __connect(int sockfd, const char *addr, unsigned short port,
-                     int socktype) {
+static int __inet_connect(int sockfd, const char *host, unsigned short port,
+                          int socktype) {
   char _port[6];
   snprintf(_port, 6, "%u", port);
 
-  int family = is_ipv6(addr) ? AF_INET6 : AF_INET;
+  int family = is_ipv6(host) ? AF_INET6 : AF_INET;
   if (family < 0)
     return -1;
 
@@ -89,7 +87,7 @@ static int __connect(int sockfd, const char *addr, unsigned short port,
   hint.ai_socktype = socktype;
 
   int err;
-  if ((err = getaddrinfo(addr, _port, &hint, &ai)) != 0)
+  if ((err = getaddrinfo(host, _port, &hint, &ai)) != 0)
     return -1;
 
   for (p = ai; p != NULL; p = p->ai_next) {
@@ -104,7 +102,7 @@ static int __connect(int sockfd, const char *addr, unsigned short port,
   return err;
 }
 
-static int __accept(int sockfd, struct sockaddr *sa, socklen_t *len) {
+static int __inet_accept(int sockfd, struct sockaddr *sa, socklen_t *len) {
   int peerfd;
   for (;;) {
     if ((peerfd = accept(sockfd, sa, len)) < 0) {
@@ -138,7 +136,7 @@ int udp_bind(const char *host, unsigned short port) {
 }
 
 int udp_connect(int sockfd, const char *host, unsigned short port) {
-  return __connect(sockfd, host, port, SOCK_DGRAM);
+  return __inet_connect(sockfd, host, port, SOCK_DGRAM);
 }
 
 int tcp_listen(const char *host, unsigned short port) {
@@ -154,25 +152,22 @@ int tcp_listen(const char *host, unsigned short port) {
 }
 
 int tcp_connect(const char *host, unsigned short port) {
-  int sockfd;
-  if ((sockfd = __socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-    perror("socket(AF_INET)");
-    return -1;
-  }
-  return __connect(sockfd, host, port, SOCK_STREAM);
+  int sockfd, err, family = is_ipv6(host) ? AF_INET6 : AF_INET;
+  if ((sockfd = __socket(family, SOCK_STREAM, 0)) < 0)
+    return sockfd;
+  if ((err = __inet_connect(sockfd, host, port, SOCK_STREAM)) < 0)
+    return err;
+  return sockfd;
 }
 
-int tcp_accept(int sockfd, struct sockaddr_storage *sa) {
-  socklen_t len = (socklen_t)sizeof *sa;
-  return __accept(sockfd, (struct sockaddr *)sa, &len);
+int tcp_accept(int sockfd, struct sockaddr *sa, socklen_t *sa_size) {
+  return __inet_accept(sockfd, sa, sa_size);
 }
 
 static int __unix_bind(const char *path, int socktype) {
   int sockfd;
-  if ((sockfd = __socket(AF_UNIX, socktype, 0)) < 0) {
-    perror("socket(AF_UNIX)");
+  if ((sockfd = __socket(AF_UNIX, socktype, 0)) < 0)
     return -1;
-  }
   struct sockaddr_un sa;
   memset(&sa, 0, sizeof sa);
   sa.sun_family = AF_UNIX;
@@ -192,10 +187,8 @@ int unix_bind(const char *path, int socktype) {
 
 int unix_connect(const char *path, int socktype) {
   int sockfd;
-  if ((sockfd = __socket(AF_UNIX, socktype, 0)) < 0) {
-    perror("socket(AF_UNIX)");
+  if ((sockfd = __socket(AF_UNIX, socktype, 0)) < 0)
     return -1;
-  }
   struct sockaddr_un sa;
   memset(&sa, 0, sizeof sa);
   sa.sun_family = AF_UNIX;
@@ -221,7 +214,7 @@ int unix_listen(const char *path) {
 
 int unix_accept(int sockfd, struct sockaddr_un *sa) {
   socklen_t len = (socklen_t)sizeof *sa;
-  return __accept(sockfd, (struct sockaddr *)sa, &len);
+  return __inet_accept(sockfd, (struct sockaddr *)sa, &len);
 }
 
 ssize_t sock_read(int sockfd, char *buf, size_t len) {

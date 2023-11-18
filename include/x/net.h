@@ -13,7 +13,7 @@ extern "C" {
 int udp_bind(const char *host, unsigned short port);
 int udp_connect(int sockfd, const char *host, unsigned short port);
 int tcp_listen(const char *host, unsigned short port);
-int tcp_accept(int sockfd, struct sockaddr_storage *sa);
+int tcp_accept(int sockfd, struct sockaddr *sa, socklen_t *sa_size);
 int tcp_connect(const char *host, unsigned short port);
 
 /* UNIX Domain Socket */
@@ -27,10 +27,6 @@ int unix_accept(int sockfd, struct sockaddr_un *sa);
 
 void set_blocking(int, int);
 void set_cloexec(int);
-ssize_t sock_read(int, char *, size_t);
-ssize_t sock_write(int, const char *, size_t);
-ssize_t sock_readfrom(int, char *, size_t, struct sockaddr_storage *);
-ssize_t sock_writeto(int, const char *, size_t, struct sockaddr_storage *);
 
 /* Tun Device */
 
