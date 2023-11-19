@@ -37,7 +37,7 @@ struct ev {
 
   // absolute time to fire an timer event, initialized by
   // the event loop.
-  struct timeval exp;
+  struct timeval when;
   // index into the minheap for an timer event, initialized
   // by the event loop.
   int id;

@@ -75,7 +75,7 @@ err:
 
 // less returns 1(0) if 'p' is sooner(later) than 'q'.
 static inline int less(struct ev *p, struct ev *q) {
-  struct timeval *tp = &p->exp, *tq = &q->exp;
+  struct timeval *tp = &p->when, *tq = &q->when;
   return tp->tv_sec < tq->tv_sec ||
          (tp->tv_sec == tq->tv_sec && tp->tv_usec < tq->tv_usec);
 }
@@ -171,8 +171,8 @@ int loop_dispatch(struct loop *loop, int flags) {
   // poll the closest timer event, if there's one then we use
   // its timeout interval to timeout the polling of IO events
   if ((tev = heap_pop(loop->heap, loop->len)) != NULL) {
-    tv.tv_sec = tev->exp.tv_sec - now.tv_sec;
-    tv.tv_usec = tev->exp.tv_usec - now.tv_usec;
+    tv.tv_sec = tev->when.tv_sec - now.tv_sec;
+    tv.tv_usec = tev->when.tv_usec - now.tv_usec;
     ptv = &tv;
     loop->len--;
     tev->id = -1;  // avoid duplicated removal by loop_ctl
@@ -287,8 +287,8 @@ int loop_ctl(struct loop *loop, int op, struct ev *ev) {
         status = gettimeofday(&now, NULL);
         if (unlikely(status < 0))
           return status;
-        ev->exp.tv_sec = now.tv_sec + ev->ms / 1000;
-        ev->exp.tv_usec = now.tv_usec + ev->ms % 1000 * 1000;
+        ev->when.tv_sec = now.tv_sec + ev->ms / 1000;
+        ev->when.tv_usec = now.tv_usec + ev->ms % 1000 * 1000;
       }
       heap_push(loop->heap, ev, loop->len);
       loop->len++;

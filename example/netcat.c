@@ -53,7 +53,7 @@ static struct tcp_conn *getconn(struct server *S) {
 
 static void putconn(struct server *S, struct tcp_conn *C) {
   struct tcp_conn *p;
-  if (S->len >= FREELIST_MAX)
+  if (S->len >= PMAX)
     xalloc(C, 0);
   else {
     list_add(&C->node, &S->freelist);
