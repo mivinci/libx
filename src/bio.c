@@ -3,7 +3,7 @@
 
 #include "x/ev.h"
 #include "x/io.h"
-#include "x/x.h"
+#include "x/mm.h"
 
 #define buf_len(p)   ((p)->tail - (p)->head)
 #define buf_awail(p) ((p)->cap - (p)->tail)

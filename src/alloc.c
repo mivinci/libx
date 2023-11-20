@@ -1,14 +1,12 @@
 #include <stdlib.h>
 
-#include "x/x.h"
+#include "x/mm.h"
 
 void *__alloc(void *ptr, size_t size) {
-  void *__ptr = NULL;
-  if (size == 0)
+  if (size != 0)
+    return realloc(ptr, size);
+  else {
     free(ptr);
-  else if (ptr)
-    __ptr = realloc(ptr, size);
-  else
-    __ptr = malloc(size);
-  return __ptr;
+    return NULL;
+  }
 }

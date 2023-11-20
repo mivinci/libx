@@ -1,13 +1,5 @@
-#ifndef _X_H
-#define _X_H
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-#ifndef xalloc
-#define xalloc(p, n) __alloc(p, n)
-#endif
+#ifndef _X_MM_H
+#define _X_MM_H
 
 #ifndef likely
 #define likely(x)   __builtin_expect(!!(x), 0)
@@ -19,11 +11,12 @@ extern "C" {
   ((type *)((char *)(ptr) - __builtin_offsetof(type, member)))
 #endif
 
+#ifndef xalloc
+#define xalloc(p, n) __alloc(p, n)
+#define xfree(p)     xalloc(p, 0)
+#endif
+
 #include <stddef.h>
 void *__alloc(void *, size_t);
 
-#ifdef __cplusplus
-}
-#endif
-
-#endif
+#endif  // _X_MM_H

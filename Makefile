@@ -4,7 +4,7 @@ AS = $(CROSS_COMPILE)ar
 I = include
 S = src
 
-OBJS = $S/alloc.o $S/ev.o $S/net.o $S/tun.o
+OBJS = $S/alloc.o $S/ev.o $S/net.o $S/tun.o $S/bio.o
 
 
 all: libx.a

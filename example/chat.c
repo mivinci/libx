@@ -1,15 +1,15 @@
+#include <arpa/inet.h>
 #include <assert.h>
 #include <getopt.h>
 #include <netinet/in.h>
 #include <stdlib.h>
-#include <arpa/inet.h>
 #include <string.h>
 #include <unistd.h>
 
 #include "x/ev.h"
 #include "x/list.h"
+#include "x/mm.h"
 #include "x/net.h"
-#include "x/x.h"
 
 #define FREELIST_MAX 32
 #define BUF_MAX      1024
@@ -51,7 +51,7 @@ static struct tcp_conn *getconn(struct server *S) {
 
 static void putconn(struct server *S, struct tcp_conn *C) {
   struct tcp_conn *p;
-  if (S->len >= PMAX)
+  if (S->len >= FREELIST_MAX)
     xalloc(C, 0);
   else {
     list_add(&C->node, &S->freelist);
