@@ -18,7 +18,7 @@ int main(void) {
   assert(L);
 
   struct bio *B;
-  B = bio_alloc(L, STDIN_FILENO, 32, 32, on_read, on_close);
+  B = bio_alloc(L, STDIN_FILENO, 10, 10, on_read, on_close);
   assert(B);
 
   loop_wait(L);

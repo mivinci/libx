@@ -28,7 +28,7 @@ struct bio {
 static int on_read(struct loop *L, struct ev *ev) {
   struct bio *io;
   struct buf *buf;
-  size_t n, m, l;
+  ssize_t n, m, l;
 
   io = container_of(ev, struct bio, ev);
   buf = &io->recvq;
@@ -51,7 +51,7 @@ static int on_read(struct loop *L, struct ev *ev) {
       io->close(io);
     return 0;
   }
-  buf->tail = buf->head + n;
+  buf->tail += n;
   *buf_tail(buf) = 0;
 cb:
   n = buf_len(buf);
@@ -89,6 +89,8 @@ ssize_t bio_write(struct bio *io, const char *p, size_t size) {
   }
   n = (size < l) ? size : l;
   memcpy(buf_tail(buf), p, n);
+  buf->tail += n;
+  *buf_tail(buf) = 0;
   return n;
 }
 
