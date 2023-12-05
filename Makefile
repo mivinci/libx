@@ -18,6 +18,12 @@ libx.a: $(OBJS)
 	$(AR) rcs $@ $^
 
 
+example: example/*.c
+	@for file in $^; do \
+		$(CC) -g -o $${file}.out $${file} -I$I -L. -lx; \
+	done
+
+
 clean:
 	rm $S/*.o
 	rm *.a
